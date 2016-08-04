@@ -1,0 +1,45 @@
+<beans xmlns="http://www.springframework.org/schema/beans"
+    xmlns:camel="http://camel.apache.org/schema/spring" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="
+       http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+       http://camel.apache.org/schema/spring http://camel.apache.org/schema/spring/camel-spring.xsd">
+
+    <camel:routeContext id="com.backbase.portal.integration.service.exercise06"
+        xmlns="http://camel.apache.org/schema/spring">
+        <route id="com.backbase.training.route.player.list">
+            <from uri="restlet:/player/listWithCache?restletMethod=GET&amp;restletBinding=#queryStringToHeadersRestletBinding"/>
+            <removeHeaders pattern="CamelHttp*" excludePattern="CamelHttpMethod"/>
+
+            <!-- Cache Here -->
+            <setHeader headerName="CamelCacheOperation"><camel:simple>CamelCacheGet</camel:simple></setHeader>
+            <setHeader headerName="CamelCacheKey"><camel:simple>PLAYERS_KEY</camel:simple></setHeader>
+            <to uri="cache://playerscache?timeToLiveSeconds=60"/>
+            <log message="Headers: ${headers}" loggingLevel="DEBUG"/>
+            <choice>
+                <when>
+                    <simple>${headers.CamelCacheElementWasFound} == null</simple>
+                    <to uri="http://localhost:9999/training-server/rest/player/players"/>
+                    <convertBodyTo type="String"/>
+                    <log message="After calling the training-server: body = ${body}" loggingLevel="DEBUG"/>
+
+                    <unmarshal>
+                        <json library="Jackson" />
+                    </unmarshal>
+                    <process ref="playerSort"/>
+                    <marshal>
+                        <json library="Jackson"/>
+                    </marshal>
+
+                    <!-- add it into cache -->
+                    <log message="Content was added into the cache"/>
+                    <setHeader headerName="CamelCacheOperation"><camel:simple>CamelCacheUpdate</camel:simple></setHeader>
+                    <setHeader headerName="CamelCacheKey"><camel:simple>PLAYERS_KEY</camel:simple></setHeader>
+                    <to uri="cache://playerscache"></to>
+                </when>
+                <otherwise>
+                    <log message="hey! there was something in the cache" loggingLevel="DEBUG"/>
+                </otherwise>
+            </choice>
+        </route>
+    </camel:routeContext>
+</beans>
