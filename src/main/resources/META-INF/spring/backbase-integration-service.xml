@@ -23,9 +23,11 @@
                     <log message="After calling the training-server: body = ${body}" loggingLevel="DEBUG"/>
 
                     <unmarshal>
-                        <json library="Jackson" />
+                        <json library="Jackson" unmarshalTypeName="com.backbase.training.to.Players"/>
                     </unmarshal>
+
                     <process ref="playerSort"/>
+
                     <marshal>
                         <json library="Jackson"/>
                     </marshal>
